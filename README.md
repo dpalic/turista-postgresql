@@ -14,6 +14,17 @@ such synchronization is implemented separately. Options for extending this
 approach are described in
 [Further integration and migration support](#further-integration-and-migration-support).
 
+## Table of contents
+
+- [Motivation](#motivation)
+- [What the migration does](#what-the-migration-does)
+- [Developer information](#developer-information)
+- [Important operational notes](#important-operational-notes)
+- [Integration examples](#integration-examples)
+- [License and product names](#license-and-product-names)
+- [Limitations, exclusions, and drawbacks](#limitations-exclusions-and-drawbacks)
+- [Further integration and migration support](#further-integration-and-migration-support)
+
 ## Motivation
 
 Integrating Turista into a distributed systems environment can be difficult.
