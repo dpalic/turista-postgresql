@@ -10,7 +10,9 @@ application-specific export.
 
 This is a database migration and offloading tool. It does not replace Turista,
 add a REST API to Turista, or continuously synchronize later changes unless
-such synchronization is implemented separately.
+such synchronization is implemented separately. Options for extending this
+approach are described in
+[Further integration and migration support](#further-integration-and-migration-support).
 
 ## Motivation
 
@@ -104,20 +106,55 @@ reproduce all composite SQL Server foreign keys found in this database.
 - `postgres-fks.sql` is generated during the migration and then applied to
   PostgreSQL.
 
-### Requirements
+### Dependencies
 
 The migration host needs:
 
-- Bash
+- Bash and standard Unix command-line tools
 - PostgreSQL client tools, including `psql`
 - A reachable PostgreSQL server
-- `pgloader` with Microsoft SQL Server support
-- FreeTDS
+- A patched source build of `pgloader` with Microsoft SQL Server support
+- FreeTDS and its DB-Library implementation
 - Microsoft `sqlcmd` from `mssql-tools18`
+- Perl, used while resolving PostgreSQL identifiers in the generated
+  foreign-key statements
 - Network access to the Turista SQL Server
 - A SQL Server account with permission to read all required tables and system
   metadata
 - A PostgreSQL account allowed to create and modify the target database
+
+The helper scripts also use common utilities such as `sed`, `sort`, `join`,
+`column`, `mktemp`, and `tr`.
+
+### Patched pgloader build
+
+The Turista migration required a locally built and patched version of
+`pgloader`. The runner currently uses:
+
+```text
+/root/pgloader/build/bin/pgloader
+```
+
+The patch changes pgloader's FreeTDS/DB-Library initialization so that:
+
+- The maximum number of DB-Library processes is configured from
+  `TDS_MAX_CONN`, with a default of 512.
+- The misleading FreeTDS message `Max connections reached, increase value of
+  TDS_MAX_CONN` is ignored when DB-Library continues to execute the request
+  successfully.
+
+This patch was needed for the tested Turista environment. A standard packaged
+pgloader installation must not be assumed to behave identically. Build and
+test the patched pgloader version before running a production migration.
+
+The migration configuration also requires at least two pgloader workers. With
+one worker, tables larger than the prefetch queue can deadlock because the
+reader fills the queue before a writer can run.
+
+This source patch is separate from the composite foreign-key workaround.
+Pgloader's automatic foreign-key creation is disabled, and
+`generate-postgres-fks.sh` recreates the foreign keys from SQL Server metadata
+after the data has been copied.
 
 ### Configuration
 
@@ -316,6 +353,8 @@ official W&W product.
   auditing, retention, deletion, and applicable data-protection obligations.
 - This project is independent of W&W and is not an official or supported
   Turista integration interface.
+
+## Further integration and migration support
 
 If a one-time copy is not enough, I can help keep information up to date in
 both Turista and connected systems. For example, a customer address changed in
