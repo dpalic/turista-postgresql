@@ -72,7 +72,7 @@ owns and documents write operations.
 
 Once migrated, the PostgreSQL database can be used as a source for:
 
-- ERP and CRM migrations
+- ERP and CRM migrations (in our case, ERPNext for both)
 - Reporting and business intelligence
 - Data warehouses and ETL pipelines
 - Search and customer-service applications
