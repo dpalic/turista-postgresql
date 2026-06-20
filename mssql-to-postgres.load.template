@@ -1,0 +1,22 @@
+-- Rendered into mssql-to-postgres.load by run-pgloader-fullmigration.sh
+-- using envsubst and the variables in .env. Do not fill in real credentials
+-- or hostnames here; edit .env instead.
+
+LOAD DATABASE
+--     FROM mssql://${MSSQL_USER}:${MSSQL_PASSWORD}@${MSSQL_HOST}/${MSSQL_DB}
+
+--   configured /etc/freetds
+     FROM mssql://${MSSQL_USER}:${MSSQL_PASSWORD}@${MSSQL_FREETDS_ALIAS}/${MSSQL_DB}
+     INTO postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT}/${PGDATABASE}
+
+WITH include drop,
+     create tables,
+     create indexes,
+     reset sequences,
+     no foreign keys,
+     downcase identifiers,
+     workers = 2,
+     concurrency = 1,
+     prefetch rows = 1000
+
+ALTER SCHEMA 'dbo' RENAME TO 'public';

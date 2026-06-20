@@ -320,10 +320,11 @@ after the data has been copied.
 ### Configuration
 
 Configure the source and target connections before running the migration.
-None of the scripts, `.load` templates, or FreeTDS config hardcode real
-credentials or hostnames — connection parameters come from `.env` (excluded
-from Git) or already-exported shell variables, which always take precedence
-over `.env`.
+The scripts and `.load` templates do not hardcode real credentials or
+hostnames. Their connection parameters come from `.env` (excluded from Git)
+or already-exported shell variables, which always take precedence over
+`.env`. The system FreeTDS configuration must explicitly contain the chosen
+SQL Server hostname.
 
 ```bash
 cp .env-example .env
@@ -359,10 +360,11 @@ SQL Server and PostgreSQL:
 - `warn` — log a warning to the migration log and continue.
 - `ignore` — skip the timezone check entirely.
 
-`MSSQL_FREETDS_ALIAS` (default `turista`) is the `[section]` name in
-`freetds.conf` that `mssql-to-postgres.load.template` connects through — the
-pgloader `FROM` clause does not use `MSSQL_HOST` directly, FreeTDS resolves
-the alias to a real host.
+Use one canonical hostname for the SQL Server throughout the migration
+configuration. Set both `MSSQL_HOST` and `MSSQL_FREETDS_ALIAS` to that
+hostname. The FreeTDS section name and its `host` value must use the same
+hostname so pgloader, `sqlcmd`, and the helper scripts resolve the same
+endpoint.
 
 `run-pgloader-fullmigration.sh` renders `mssql-to-postgres.load.template`
 into `mssql-to-postgres.load` via `envsubst` before invoking pgloader, and
@@ -373,29 +375,61 @@ Do not commit real database passwords, private hostnames, or customer data.
 
 ### FreeTDS
 
-The migration expects FreeTDS to resolve and connect to the SQL Server.
-Copy `freetds.conf.example` to `/etc/freetds/freetds.conf` and replace the
-example host with the real SQL Server address:
+The migration host must be able to resolve the SQL Server by hostname. Use an
+organization-managed DNS name where available. Otherwise, add a stable entry
+to `/etc/hosts`:
+
+```text
+192.0.2.10 turista-sql.example.internal
+```
+
+Verify name resolution before configuring or running the migration:
+
+```bash
+getent hosts turista-sql.example.internal
+```
+
+Copy `freetds.conf.example` to `/etc/freetds/freetds.conf`. Use the resolved
+hostname as both the FreeTDS section name and the `host` value:
 
 ```ini
-[turista]
-    host = sql-server.example.internal
+[turista-sql.example.internal]
+    host = turista-sql.example.internal
     port = 1433
     tds version = 7.4
     client charset = UTF-8
 ```
 
-Use the matching server name in `MSSQL_FREETDS_ALIAS` (the section name, not
-the host) and keep `MSSQL_HOST` in `.env` set to the real address used by the
-helper scripts' direct `sqlcmd`/`psql` connections.
+Use this same hostname in `.env`:
+
+```dotenv
+MSSQL_HOST=turista-sql.example.internal
+MSSQL_FREETDS_ALIAS=turista-sql.example.internal
+```
+
+The generated `mssql-to-postgres.load` file then uses the same server name
+through `MSSQL_FREETDS_ALIAS`. Do not mix an IP address, a short alias, and a
+DNS name across these settings; inconsistent names make connection failures
+and troubleshooting harder.
 
 ### Usage
 
-Run the scripts from the directory containing the migration files.
+Recommended migration procedure:
+
+1. Choose one stable SQL Server hostname.
+2. Ensure the hostname resolves through DNS or `/etc/hosts`.
+3. Use that hostname as the FreeTDS section name and `host` value.
+4. Set both `MSSQL_HOST` and `MSSQL_FREETDS_ALIAS` to the same hostname.
+5. Configure the remaining SQL Server and PostgreSQL connection values.
+6. Run the migration from the directory containing the migration files.
 
 ```bash
+getent hosts turista-sql.example.internal
+
 cp .env-example .env
-# edit .env
+# Edit .env. Use turista-sql.example.internal for both MSSQL_HOST and
+# MSSQL_FREETDS_ALIAS, then set the credentials and PostgreSQL connection.
+
 ./run-pgloader-fullmigration.sh
 ```
 
