@@ -14,8 +14,48 @@ such synchronization is implemented separately. Options for extending this
 approach are described in
 [Further integration and migration support](#further-integration-and-migration-support).
 
+## Management summary
+
+The project is intended to reduce dependency on a Windows-only application
+database by creating an independently accessible PostgreSQL copy. The expected
+business outcomes are broader data access, easier integration, improved
+reporting, and a controlled foundation for future migration or modernization
+work without modifying the operational Turista installation.
+
+The documented migration design includes the following operational controls:
+
+- Complete table and data transfer instead of a limited application export.
+- Reconstruction and validation of primary-key and foreign-key relationships,
+  including composite foreign keys.
+- Source-to-target row-count and structural comparisons for reconciliation.
+- Date and time validation to detect timezone-related migration errors.
+- Configurable fail, warn, or ignore behavior for timezone mismatches.
+- Separation of credentials from tracked source files through environment
+  variables and a Git-ignored `.env` file.
+- Repeatable execution through scripted migration and validation steps.
+
+Development changes are supported by `commit.sh`, which provides:
+
+- Mandatory numeric issue references in commit messages for traceability.
+- Non-empty commit-message validation.
+- Selection of a public Git email before creating a commit, reducing the risk
+  of GitHub rejecting a push because it exposes a protected private email.
+- Consistent author and committer email settings across environments that
+  provide `GIT_AUTHOR_*` and `GIT_COMMITTER_*` variables.
+- A repair command for anonymizing the latest commit without changing its
+  message.
+- Explicit staging control: the helper commits only changes already staged by
+  the user.
+
+Repository status: this revision contains the commit-management helper, but
+the migration and validation scripts described in this README are not yet
+tracked in the repository. Therefore, the migration controls above describe
+the intended and previously verified workflow, not an executable package in
+the current revision.
+
 ## Table of contents
 
+- [Management summary](#management-summary)
 - [Motivation](#motivation)
 - [What the migration does](#what-the-migration-does)
 - [Developer information](#developer-information)
@@ -145,6 +185,23 @@ fixed in the proof of concept either:
 
 ### Included scripts
 
+- `commit.sh` standardizes issue-linked commits and public Git identities:
+  - `./commit.sh commit` asks for a public email, numeric issue number, and
+    commit message, then creates `<message> #<issue-number>` from the already
+    staged changes.
+  - `./commit.sh anonymize-commit` asks for a public email and amends the
+    latest commit with `--no-edit --reset-author`.
+  - The helper reads `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`,
+    `GIT_COMMITTER_NAME`, and `GIT_COMMITTER_EMAIL`. Its current identity
+    mapping recognizes Darko Palic and suggests
+    `1399203+dpalic@users.noreply.github.com`; other users must enter their
+    own public address.
+  - The selected email is exported for the command and stored as the
+    repository-local `user.email`.
+  - Email validation is syntactic only. The helper cannot verify that an
+    address belongs to the user or is registered with GitHub.
+  - The anonymization command rewrites only `HEAD`; it does not repair older
+    commits.
 - `run-pgloader-fullmigration.sh` runs the complete migration and validation,
   including the foreign-key recreation and the timezone check
   (`check-timezones.sh`). What happens when the timezone check finds a
@@ -380,6 +437,11 @@ Differences must be reviewed before the PostgreSQL database is used as a
 trusted integration source.
 
 ## Important operational notes
+
+The scripting and tooling were used and verified on Ubuntu
+`24.04.4 LTS (Noble Numbat)`. Other operating-system versions may work but
+have not been validated by this project and may require dependency or
+configuration changes.
 
 The pgloader configuration uses `include drop`. Existing target objects may be
 dropped and recreated. Run it only against the intended PostgreSQL migration
